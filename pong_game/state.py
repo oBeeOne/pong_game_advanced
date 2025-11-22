@@ -24,6 +24,12 @@ class JeuPong:
         self.mode_ordinateur = True
         self.niveau_ia = "debutant"
         self.musique_menu_active = False
+        # Gestion musique menu étendue et fade-out
+        self.menu_frames = 0
+        self.menu_extended = False
+        self.fade_out = False
+        self.fade_out_frames = 0
+        self.demarrage_jeu_en_attente = False
 
         self.raq_g = None
         self.raq_d = None
@@ -67,9 +73,15 @@ class JeuPong:
         self.balle = Balle()
 
     def gerer_musique_menu(self):
+        # Ne pas gérer la musique menu si on est en phase de fade-out ou victoire
+        if self.fade_out or hasattr(self, "victoire_son_joue"):
+            return
+
         if self.etat in ["menu", "difficulte"]:
+            # Choix de la piste selon extension
+            piste_voulue = 3 if self.menu_extended else 0
             if not self.musique_menu_active:
-                # pyxel.playm(0, loop=True)
+                pyxel.playm(piste_voulue, loop=True)
                 self.musique_menu_active = True
         else:
             if self.musique_menu_active:
@@ -79,6 +91,17 @@ class JeuPong:
     def maj_menu(self):
         self.gerer_musique_menu()
 
+        # Comptage frames pour déclencher musique étendue (environ 8s => 240 frames)
+        if not self.fade_out:
+            self.menu_frames += 1
+            if not self.menu_extended and self.menu_frames >= 240:
+                self.menu_extended = True
+                # Forcer redémarrage musique sur piste étendue
+                if self.musique_menu_active:
+                    pyxel.stop()
+                    self.musique_menu_active = False
+                    self.gerer_musique_menu()
+
         if pyxel.btnp(TOUCHES["haut"]) or pyxel.btnp(TOUCHES["gauche_haut"]):
             self.selection_menu = (self.selection_menu - 1) % 3
             pyxel.play(0, 4)
@@ -86,23 +109,44 @@ class JeuPong:
             self.selection_menu = (self.selection_menu + 1) % 3
             pyxel.play(0, 4)
 
-        if pyxel.btnp(TOUCHES["entree"]) or pyxel.btnp(pyxel.KEY_SPACE):
-            pyxel.play(0, 5)
-            if self.selection_menu == 0:
-                self.mode_ordinateur = True
-                self.etat = "difficulte"
-            elif self.selection_menu == 1:
-                self.mode_ordinateur = False
-                self.creer_entites()
-                self.etat = "jeu"
-            elif self.selection_menu == 2:
-                pyxel.quit()
+        if not self.fade_out:
+            if pyxel.btnp(TOUCHES["entree"]) or pyxel.btnp(pyxel.KEY_SPACE):
+                pyxel.play(0, 5)
+                if self.selection_menu == 0:
+                    self.mode_ordinateur = True
+                    self.etat = "difficulte"
+                    # Réinitialiser compteur difficulté
+                    self.menu_frames = 0
+                elif self.selection_menu == 1:
+                    # Lancement fade-out avant jeu direct
+                    self.mode_ordinateur = False
+                    self.init_fade_out()
+                elif self.selection_menu == 2:
+                    pyxel.quit()
 
         if pyxel.btnp(TOUCHES["quitter"]):
             pyxel.quit()
 
+        # Gestion fade-out si actif
+        if self.fade_out:
+            self.fade_out_frames += 1
+            # Après ~2s (120 frames) démarrage du jeu
+            if self.fade_out_frames >= 120:
+                self.creer_entites()
+                self.etat = "jeu"
+                self.terminer_fade_out()
+
     def maj_difficulte(self):
         self.gerer_musique_menu()
+
+        if not self.fade_out:
+            self.menu_frames += 1
+            if not self.menu_extended and self.menu_frames >= 240:
+                self.menu_extended = True
+                if self.musique_menu_active:
+                    pyxel.stop()
+                    self.musique_menu_active = False
+                    self.gerer_musique_menu()
 
         if pyxel.btnp(TOUCHES["haut"]) or pyxel.btnp(TOUCHES["gauche_haut"]):
             self.selection_difficulte = (self.selection_difficulte - 1) % 3
@@ -111,15 +155,28 @@ class JeuPong:
             self.selection_difficulte = (self.selection_difficulte + 1) % 3
             pyxel.play(0, 4)
 
-        if pyxel.btnp(TOUCHES["entree"]) or pyxel.btnp(pyxel.KEY_SPACE):
-            pyxel.play(0, 5)
-            niveaux = ["debutant", "amateur", "pro"]
-            self.niveau_ia = niveaux[self.selection_difficulte]
-            self.creer_entites()
-            self.etat = "jeu"
+        if not self.fade_out:
+            if pyxel.btnp(TOUCHES["entree"]) or pyxel.btnp(pyxel.KEY_SPACE):
+                pyxel.play(0, 5)
+                niveaux = ["debutant", "amateur", "pro"]
+                self.niveau_ia = niveaux[self.selection_difficulte]
+                # Lancer fade-out avant jeu
+                self.init_fade_out()
 
         if pyxel.btnp(TOUCHES["quitter"]):
             self.etat = "menu"
+            # Réinitialiser pour que musique menu reparte proprement
+            self.menu_frames = 0
+            self.menu_extended = False
+            if self.fade_out:
+                self.terminer_fade_out(abandon=True)
+
+        if self.fade_out:
+            self.fade_out_frames += 1
+            if self.fade_out_frames >= 120:
+                self.creer_entites()
+                self.etat = "jeu"
+                self.terminer_fade_out()
 
     def maj_jeu(self):
         self.gerer_musique_menu()
@@ -130,6 +187,9 @@ class JeuPong:
             self.reinitialiser()
         if pyxel.btnp(TOUCHES["quitter"]):
             self.etat = "menu"
+            # Reset pour menu
+            self.menu_frames = 0
+            self.menu_extended = False
             return
 
         if self.pause:
@@ -159,8 +219,31 @@ class JeuPong:
 
         if self.score_g >= SCORE_MAX or self.score_d >= SCORE_MAX:
             if not hasattr(self, "victoire_son_joue"):
-                pyxel.play(0, 8)
+                pyxel.stop()  # Arrêter sons/musiques courants
+                # Reset indicateurs audio de menu/fade-out pour éviter interférences
+                self.musique_menu_active = False
+                self.fade_out = False
+                piste = 1 if self.score_g > self.score_d else 2
+                print(f"[DEBUG] Victoire: lecture musique piste {piste} (score_g={self.score_g}, score_d={self.score_d})")
+                pyxel.playm(piste, loop=False)
                 self.victoire_son_joue = True
+
+    def init_fade_out(self):
+        # Préparer fade-out et arrêter musique menu
+        if self.musique_menu_active:
+            pyxel.stop()
+            self.musique_menu_active = False
+        self.fade_out = True
+        self.fade_out_frames = 0
+        pyxel.playm(4, loop=False)
+
+    def terminer_fade_out(self, abandon: bool = False):
+        self.fade_out = False
+        self.fade_out_frames = 0
+        if abandon:
+            # Si fade-out abandonné (retour menu) relancer musique menu propre
+            self.musique_menu_active = False
+            self.gerer_musique_menu()
 
     def maj(self) -> None:
         if self.etat == "menu":
@@ -180,6 +263,11 @@ class JeuPong:
         self.pause = False
         if hasattr(self, "victoire_son_joue"):
             delattr(self, "victoire_son_joue")
+        # Reset musique menu dynamique
+        self.menu_frames = 0
+        self.menu_extended = False
+        if self.fade_out:
+            self.terminer_fade_out(abandon=True)
 
     def nouvelle_mise_en_jeu(self, a_droite: bool) -> None:
         if self.balle:

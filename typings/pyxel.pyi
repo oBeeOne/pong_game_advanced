@@ -33,5 +33,8 @@ def btnp(key: int) -> bool: ...
 class _Sound:
     def set(self, notes: str, tones: str, volumes: str, effects: str, speed: int) -> None: ...
 
+class _Music:
+    def set(self, ch0: List[int] = ..., ch1: List[int] = ..., ch2: List[int] = ..., ch3: List[int] = ...) -> None: ...
+
 sounds: List[_Sound]
-musics: List[object]
+musics: List[_Music]
