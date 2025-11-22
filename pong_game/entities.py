@@ -13,7 +13,7 @@ from .config import (
 
 
 class Raquette:
-    def __init__(self, x: float, y: float, touche_haut: int, touche_bas: int):
+    def __init__(self, x: float, y: float, touche_haut: int | None, touche_bas: int | None):
         self.x = x
         self.y = y
         self.y_precedente = y
@@ -360,8 +360,8 @@ class Balle:
         pyxel.rect(pos_x, pos_y, taille_actuelle, taille_actuelle, couleur)
 
         if taille_actuelle > self.t * 1.1:
-            centre_balle_x = pos_x + taille_actuelle // 2
-            centre_balle_y = pos_y + taille_actuelle // 2
+            centre_balle_x = int(pos_x + taille_actuelle // 2)
+            centre_balle_y = int(pos_y + taille_actuelle // 2)
             pyxel.pset(centre_balle_x - 1, centre_balle_y - 1, 7)
 
         if vitesse_totale > 5:
@@ -387,7 +387,7 @@ class Balle:
             centre_balle_y = pos_y + taille_actuelle // 2
             offset_effet_y = direction_effet * int(taille_actuelle * 0.4 * intensite)
             couleur_effet = 13 if intensite > 0.7 else 5
-            pyxel.pset(centre_balle_x, centre_balle_y + offset_effet_y, couleur_effet)
+            pyxel.pset(int(centre_balle_x), int(centre_balle_y + offset_effet_y), couleur_effet)
             if intensite > 0.8:
-                pyxel.pset(centre_balle_x - 1, centre_balle_y + offset_effet_y, couleur_effet)
-                pyxel.pset(centre_balle_x + 1, centre_balle_y + offset_effet_y, couleur_effet)
+                pyxel.pset(int(centre_balle_x - 1), int(centre_balle_y + offset_effet_y), couleur_effet)
+                pyxel.pset(int(centre_balle_x + 1), int(centre_balle_y + offset_effet_y), couleur_effet)

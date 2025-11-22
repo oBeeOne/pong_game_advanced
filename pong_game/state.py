@@ -32,11 +32,11 @@ class JeuPong:
     def creer_entites(self):
         if self.mode_ordinateur:
             if self.niveau_ia == "debutant":
-                taille_raquette = RAQ_H * 1.2
+                taille_raquette = int(RAQ_H * 1.2)
             elif self.niveau_ia == "amateur":
                 taille_raquette = RAQ_H
             else:
-                taille_raquette = RAQ_H * 0.7
+                taille_raquette = int(RAQ_H * 0.7)
         else:
             taille_raquette = RAQ_H
 
@@ -135,6 +135,9 @@ class JeuPong:
         if self.pause:
             return
 
+        if not self.raq_g or not self.raq_d or not self.balle:
+            return
+
         self.raq_g.maj()
         if isinstance(self.raq_d, SmartComputer):
             self.raq_d.maj(self.balle.y, self.balle)
@@ -179,8 +182,9 @@ class JeuPong:
             delattr(self, "victoire_son_joue")
 
     def nouvelle_mise_en_jeu(self, a_droite: bool) -> None:
-        self.balle.reset(direction_aleatoire=True)
-        self.balle.vx = BAL_V_INIT * (1 if a_droite else -1)
+        if self.balle:
+            self.balle.reset(direction_aleatoire=True)
+            self.balle.vx = BAL_V_INIT * (1 if a_droite else -1)
 
     def dessiner_difficulte(self) -> None:
         pyxel.cls(COULEUR_FOND)
