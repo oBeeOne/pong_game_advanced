@@ -227,6 +227,16 @@ class JeuPong:
                 print(f"[DEBUG] Victoire: lecture musique piste {piste} (score_g={self.score_g}, score_d={self.score_d})")
                 pyxel.playm(piste, loop=False)
                 self.victoire_son_joue = True
+                self.victoire_piste = piste
+                self.victoire_frame_start = pyxel.frame_count
+            else:
+                # Vérification simple: si quelques frames après déclenchement aucun son actif, relancer.
+                if hasattr(self, "victoire_frame_start") and pyxel.frame_count - self.victoire_frame_start > 15:
+                    # Impossible de vérifier directement playm actif sans API; on relance prudemment une seule fois.
+                    if not hasattr(self, "victoire_replay"):
+                        print("[DEBUG] Relance musique victoire/defaite (sécurité)")
+                        pyxel.playm(self.victoire_piste, loop=False)
+                        self.victoire_replay = True
 
     def init_fade_out(self):
         # Préparer fade-out et arrêter musique menu
